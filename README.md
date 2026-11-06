@@ -15,7 +15,7 @@ Kenya-focused local marketplace with a FastAPI backend and responsive React fron
    uvicorn app.main:app --reload
    ```
 
-3. In another terminal, start the web app from `frontend/frontend/`:
+3. In another terminal, start the web app from `frontend/`:
 
    ```sh
    npm ci
