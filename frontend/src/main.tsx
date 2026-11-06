@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { ArrowRight, BadgeCheck, BriefcaseBusiness, Check, ChevronDown, CircleHelp, Compass, LayoutDashboard, Leaf, LockKeyhole, LogOut, Menu, Search, ShieldCheck, ShoppingBag, ShoppingBasket, Store, Users, X } from 'lucide-react'
 import './style.css'
 
-const API = import.meta.env.VITE_API_BASE_URL || (import.meta.env.PROD ? '' : 'http://localhost:8000')
+const API = import.meta.env.VITE_API_BASE_URL || (import.meta.env.PROD ? 'https://biashara-hub-api.onrender.com' : 'http://localhost:8000')
 type Role = 'customer' | 'vendor' | 'admin'
 type User = {id:number;name:string;email:string;role:Role}
 type Vendor = {id:number;user_id:number;business_name:string;phone:string;county:string;description?:string;status:string}
