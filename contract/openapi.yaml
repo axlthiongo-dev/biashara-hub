@@ -1,0 +1,687 @@
+openapi: 3.1.0
+info:
+  title: Biashara Hub API
+  version: 1.0.0
+  description: Kenyan SME marketplace API. Payment integration is sandbox-only until explicitly approved for production.
+servers:
+  - url: http://localhost:8000
+    description: Local development
+tags:
+  - name: Auth
+  - name: Vendors
+  - name: Products
+  - name: Orders
+  - name: Payments
+  - name: Delivery
+  - name: Admin
+  - name: Health
+security:
+  - bearerAuth: []
+paths:
+  /health:
+    get:
+      tags: [Health]
+      security: []
+      summary: Service health check
+      operationId: healthCheck
+      responses:
+        '200':
+          description: Service is ready
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Health' }
+  /auth/register:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Register a customer or vendor account
+      operationId: register
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RegisterRequest' }
+      responses:
+        '201':
+          description: Account created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /auth/login:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Exchange credentials for a bearer token
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoginRequest' }
+      responses:
+        '200':
+          description: Authenticated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthToken' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /vendors/me:
+    get:
+      tags: [Vendors]
+      summary: Get the authenticated vendor profile
+      operationId: getMyVendor
+      responses:
+        '200':
+          description: Vendor profile
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Vendor' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [Vendors]
+      summary: Create or update vendor onboarding profile
+      operationId: upsertMyVendor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/VendorInput' }
+      responses:
+        '200':
+          description: Vendor profile saved
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Vendor' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /products:
+    get:
+      tags: [Products]
+      security: []
+      summary: Search and list approved-vendor products
+      operationId: listProducts
+      parameters:
+        - in: query
+          name: q
+          schema: { type: string, maxLength: 120 }
+        - in: query
+          name: category
+          schema: { type: string, maxLength: 80 }
+        - in: query
+          name: page
+          schema: { type: integer, minimum: 1, default: 1 }
+        - in: query
+          name: page_size
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        '200':
+          description: Product page
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProductPage' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    post:
+      tags: [Products]
+      summary: Create a product for the authenticated approved vendor
+      operationId: createProduct
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProductInput' }
+      responses:
+        '201':
+          description: Product created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Product' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /products/{product_id}:
+    parameters:
+      - in: path
+        name: product_id
+        required: true
+        schema: { type: integer, minimum: 1 }
+    get:
+      tags: [Products]
+      security: []
+      summary: Get product details
+      operationId: getProduct
+      responses:
+        '200':
+          description: Product details
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Product' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Products]
+      summary: Update a product owned by the authenticated vendor
+      operationId: updateProduct
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProductPatch' }
+      responses:
+        '200':
+          description: Product updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Product' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [Products]
+      summary: Delete a product owned by the authenticated vendor
+      operationId: deleteProduct
+      responses:
+        '204': { description: Product deleted }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /cart:
+    get:
+      tags: [Orders]
+      summary: Get the authenticated customer's cart
+      operationId: getCart
+      responses:
+        '200':
+          description: Current cart
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Cart' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    put:
+      tags: [Orders]
+      summary: Replace the authenticated customer's cart contents
+      operationId: updateCart
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CartInput' }
+      responses:
+        '200':
+          description: Cart saved
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Cart' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /orders:
+    get:
+      tags: [Orders]
+      summary: List orders visible to the authenticated customer or vendor
+      operationId: listOrders
+      parameters:
+        - in: query
+          name: status
+          schema: { $ref: '#/components/schemas/OrderStatus' }
+        - in: query
+          name: page
+          schema: { type: integer, minimum: 1, default: 1 }
+      responses:
+        '200':
+          description: Order page
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrderPage' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      tags: [Orders]
+      summary: Create an order from the authenticated customer's cart
+      operationId: createOrder
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateOrderRequest' }
+      responses:
+        '201':
+          description: Order created pending payment
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Order' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /orders/{order_id}:
+    parameters:
+      - in: path
+        name: order_id
+        required: true
+        schema: { type: integer, minimum: 1 }
+    get:
+      tags: [Orders]
+      summary: Get an order visible to the authenticated customer, vendor, or admin
+      operationId: getOrder
+      responses:
+        '200':
+          description: Order details
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Order' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /payments/mpesa/stkpush:
+    post:
+      tags: [Payments]
+      summary: Start a Daraja sandbox STK Push for an order
+      operationId: createMpesaStkPush
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/StkPushRequest' }
+      responses:
+        '202':
+          description: Push accepted; payment is pending callback/query
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Payment' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '502': { $ref: '#/components/responses/UpstreamError' }
+  /payments/mpesa/callback:
+    post:
+      tags: [Payments]
+      security: []
+      summary: Receive a Daraja callback; deduplicate by checkout request
+      operationId: receiveMpesaCallback
+      description: Validate callback shape and correlate it to a pending checkout. Process each checkout result idempotently. Do not trust client-supplied payment status. Daraja callbacks may not be cryptographically signed; use correlation, amount/receipt validation and an authenticated status query where required.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DarajaCallback' }
+      responses:
+        '200':
+          description: Callback accepted or safely deduplicated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CallbackAck' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /payments/{payment_id}:
+    get:
+      tags: [Payments]
+      summary: Get payment state for an order owner/vendor/admin
+      operationId: getPayment
+      parameters:
+        - in: path
+          name: payment_id
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: Payment state
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Payment' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /orders/{order_id}/delivery:
+    put:
+      tags: [Delivery]
+      summary: Update delivery state by the owning vendor or admin
+      operationId: updateDelivery
+      parameters:
+        - in: path
+          name: order_id
+          required: true
+          schema: { type: integer, minimum: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DeliveryUpdate' }
+      responses:
+        '200':
+          description: Delivery state updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Order' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /admin/vendors:
+    get:
+      tags: [Admin]
+      summary: List vendors awaiting approval (admin only)
+      operationId: listPendingVendors
+      parameters:
+        - in: query
+          name: status
+          schema: { $ref: '#/components/schemas/VendorStatus' }
+      responses:
+        '200':
+          description: Vendor list
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Vendor' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /admin/vendors/{vendor_id}/approval:
+    put:
+      tags: [Admin]
+      summary: Approve or reject a vendor (admin only)
+      operationId: reviewVendor
+      parameters:
+        - in: path
+          name: vendor_id
+          required: true
+          schema: { type: integer, minimum: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/VendorApproval' }
+      responses:
+        '200':
+          description: Vendor reviewed
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Vendor' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  responses:
+    Unauthorized:
+      description: Authentication required or invalid
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Forbidden:
+      description: Authenticated user lacks permission
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Conflict:
+      description: Request conflicts with current resource state
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    ValidationError:
+      description: Request validation failed
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    UpstreamError:
+      description: Daraja sandbox request failed
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+  schemas:
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string, examples: [validation_error] }
+        message: { type: string }
+        details: { type: object, additionalProperties: true }
+    Health:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string, enum: [ok] }
+        version: { type: string }
+    Role:
+      type: string
+      enum: [customer, vendor, admin]
+    User:
+      type: object
+      required: [id, name, email, role, created_at]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        email: { type: string, format: email }
+        role: { $ref: '#/components/schemas/Role' }
+        created_at: { type: string, format: date-time }
+    RegisterRequest:
+      type: object
+      required: [name, email, password, role]
+      properties:
+        name: { type: string, minLength: 2, maxLength: 120 }
+        email: { type: string, format: email, maxLength: 254 }
+        password: { type: string, minLength: 12, maxLength: 128, writeOnly: true }
+        role: { type: string, enum: [customer, vendor] }
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, minLength: 1, writeOnly: true }
+    AuthToken:
+      type: object
+      required: [access_token, token_type, expires_in, user]
+      properties:
+        access_token: { type: string, description: Bearer JWT }
+        token_type: { type: string, const: bearer }
+        expires_in: { type: integer, minimum: 1 }
+        user: { $ref: '#/components/schemas/User' }
+    VendorStatus:
+      type: string
+      enum: [pending, approved, rejected]
+    VendorInput:
+      type: object
+      required: [business_name, phone, county]
+      properties:
+        business_name: { type: string, minLength: 2, maxLength: 160 }
+        phone: { type: string, pattern: '^\+254[17][0-9]{8}$' }
+        county: { type: string, minLength: 2, maxLength: 80 }
+        description: { type: string, maxLength: 2000 }
+    Vendor:
+      allOf:
+        - $ref: '#/components/schemas/VendorInput'
+        - type: object
+          required: [id, user_id, status, created_at]
+          properties:
+            id: { type: integer }
+            user_id: { type: integer }
+            status: { $ref: '#/components/schemas/VendorStatus' }
+            created_at: { type: string, format: date-time }
+    VendorApproval:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string, enum: [approved, rejected] }
+        review_note: { type: string, maxLength: 1000 }
+    ProductInput:
+      type: object
+      required: [name, description, price_kes, stock, category]
+      properties:
+        name: { type: string, minLength: 2, maxLength: 160 }
+        description: { type: string, maxLength: 5000 }
+        price_kes: { type: integer, minimum: 1, maximum: 100000000 }
+        stock: { type: integer, minimum: 0, maximum: 1000000 }
+        category: { type: string, minLength: 1, maxLength: 80 }
+        image_url: { type: string, format: uri, maxLength: 2048 }
+    ProductPatch:
+      type: object
+      minProperties: 1
+      properties:
+        name: { type: string, minLength: 2, maxLength: 160 }
+        description: { type: string, maxLength: 5000 }
+        price_kes: { type: integer, minimum: 1, maximum: 100000000 }
+        stock: { type: integer, minimum: 0, maximum: 1000000 }
+        category: { type: string, minLength: 1, maxLength: 80 }
+        image_url: { type: [string, 'null'], format: uri, maxLength: 2048 }
+    Product:
+      allOf:
+        - $ref: '#/components/schemas/ProductInput'
+        - type: object
+          required: [id, vendor_id, created_at]
+          properties:
+            id: { type: integer }
+            vendor_id: { type: integer }
+            created_at: { type: string, format: date-time }
+    ProductPage:
+      type: object
+      required: [items, page, page_size, total]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/Product' } }
+        page: { type: integer }
+        page_size: { type: integer }
+        total: { type: integer }
+    CartInput:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          maxItems: 100
+          items:
+            type: object
+            required: [product_id, quantity]
+            properties:
+              product_id: { type: integer, minimum: 1 }
+              quantity: { type: integer, minimum: 1, maximum: 1000 }
+    Cart:
+      type: object
+      required: [items, total_kes]
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            required: [product, quantity, line_total_kes]
+            properties:
+              product: { $ref: '#/components/schemas/Product' }
+              quantity: { type: integer }
+              line_total_kes: { type: integer }
+        total_kes: { type: integer, minimum: 0 }
+    OrderStatus:
+      type: string
+      enum: [pending_payment, paid, processing, shipped, delivered, cancelled]
+    CreateOrderRequest:
+      type: object
+      required: [delivery_address]
+      properties:
+        delivery_address: { type: string, minLength: 5, maxLength: 1000 }
+        delivery_phone: { type: string, pattern: '^\+254[17][0-9]{8}$' }
+    OrderItem:
+      type: object
+      required: [product_id, product_name, quantity, unit_price_kes, line_total_kes]
+      properties:
+        product_id: { type: integer }
+        product_name: { type: string }
+        quantity: { type: integer }
+        unit_price_kes: { type: integer }
+        line_total_kes: { type: integer }
+    Order:
+      type: object
+      required: [id, customer_id, items, total_kes, status, delivery_address, created_at]
+      properties:
+        id: { type: integer }
+        customer_id: { type: integer }
+        vendor_id: { type: integer }
+        items: { type: array, items: { $ref: '#/components/schemas/OrderItem' } }
+        total_kes: { type: integer }
+        status: { $ref: '#/components/schemas/OrderStatus' }
+        delivery_address: { type: string }
+        delivery_phone: { type: string }
+        delivery_status: { $ref: '#/components/schemas/DeliveryStatus' }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    OrderPage:
+      type: object
+      required: [items, page, total]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/Order' } }
+        page: { type: integer }
+        total: { type: integer }
+    StkPushRequest:
+      type: object
+      required: [order_id, phone]
+      properties:
+        order_id: { type: integer, minimum: 1 }
+        phone: { type: string, pattern: '^\+254[17][0-9]{8}$' }
+    PaymentStatus:
+      type: string
+      enum: [pending, succeeded, failed, cancelled, timed_out]
+    Payment:
+      type: object
+      required: [id, order_id, amount_kes, status, provider, created_at]
+      properties:
+        id: { type: integer }
+        order_id: { type: integer }
+        amount_kes: { type: integer }
+        status: { $ref: '#/components/schemas/PaymentStatus' }
+        provider: { type: string, const: mpesa_daraja_sandbox }
+        checkout_request_id: { type: [string, 'null'] }
+        receipt_number: { type: [string, 'null'] }
+        result_code: { type: [integer, 'null'] }
+        created_at: { type: string, format: date-time }
+    DarajaCallback:
+      type: object
+      required: [Body]
+      properties:
+        Body:
+          type: object
+          required: [stkCallback]
+          properties:
+            stkCallback:
+              type: object
+              required: [MerchantRequestID, CheckoutRequestID, ResultCode, ResultDesc]
+              properties:
+                MerchantRequestID: { type: string }
+                CheckoutRequestID: { type: string }
+                ResultCode: { type: integer }
+                ResultDesc: { type: string }
+                CallbackMetadata:
+                  type: object
+                  properties:
+                    Item:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          Name: { type: string }
+                          Value: {}
+    CallbackAck:
+      type: object
+      required: [accepted]
+      properties:
+        accepted: { type: boolean, const: true }
+        duplicate: { type: boolean }
+    DeliveryStatus:
+      type: string
+      enum: [not_dispatched, processing, shipped, delivered]
+    DeliveryUpdate:
+      type: object
+      required: [status]
+      properties:
+        status: { $ref: '#/components/schemas/DeliveryStatus' }
+        tracking_reference: { type: string, maxLength: 120 }
+        note: { type: string, maxLength: 1000 }
