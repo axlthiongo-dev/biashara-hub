@@ -17,6 +17,12 @@ from pwdlib import PasswordHash
 from sqlmodel import Field as DBField, Session, SQLModel, create_engine, select
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./biashara.db")
+# Render provides PostgreSQL URLs with the legacy ``postgres://`` scheme;
+# SQLAlchemy 2 requires the explicit psycopg driver for PostgreSQL.
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = "postgresql+psycopg://" + DATABASE_URL.removeprefix("postgres://")
+elif DATABASE_URL.startswith("postgresql://"):
+    DATABASE_URL = "postgresql+psycopg://" + DATABASE_URL.removeprefix("postgresql://")
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {})
 password_hash = PasswordHash.recommended()
 JWT_SECRET = os.getenv("JWT_SECRET_KEY")
